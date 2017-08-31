@@ -43,8 +43,7 @@ else:
     y_train = np.expand_dims(train_label_data, 1)
 
 
-unet_model = create_Unet_model2D(x_train[0].shape, number_of_classification_labels=number_of_labels, 
-                                    layers=4)
+unet_model = create_Unet_model2D(x_train[0].shape, n_labels=number_of_labels, layers=4)
 n_epoch = 100
 track = unet_model.fit(x_train, y_train,
                         epochs=n_epoch, batch_size=20,

@@ -20,7 +20,7 @@ def loss_dice_coefficient_error(y_true, y_pred):
 
 
 def create_Unet_model2D(input_image_size,
-                        number_of_classification_labels=1,
+                        n_labels=1,
                         layers=4,
                         lowest_resolution=32,
                         convolution_kernel_size=(3,3),
@@ -35,6 +35,8 @@ def create_Unet_model2D(input_image_size,
     unet_model = create_Unet_model2D( (100,100,1), 1, np.arange(4))
     """
     layers = np.arange(layers)
+    number_of_classification_labels = n_labels
+    
     inputs = Input(shape=input_image_size)
 
     ## ENCODING PATH ##
