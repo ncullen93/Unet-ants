@@ -3,5 +3,4 @@ UNet/
 __pycache__
 *.pyc
 *.h5
-*.png
 *.npy
