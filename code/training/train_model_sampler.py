@@ -45,7 +45,7 @@ dataset = CSVDataset(filepath=data_dir+'image_filemap.csv',
 # this splits alphabetically by values, and since 'test' comes before 'train' thus val_data is returned before train_data
 val_data, train_data = dataset.split_by_column('train-test')
 
-# overwrite co-transform on validation data
+# overwrite co-transform on validation data so it doesnt have any random augmentation
 val_data.set_co_transform(tx.ExpandDims(axis=-1))
 
 # create a dataloader .. this is basically a keras DataGenerator -> can be fed to `fit_generator`
