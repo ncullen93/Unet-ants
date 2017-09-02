@@ -69,14 +69,14 @@ model.fit_generator(generator=iter(train_loader), steps_per_epoch=np.ceil(len(tr
 
 ### RUNNING INFERENCE ON THE NON-AUGMENTED DATA
 
-
 real_dataset = CSVDataset(filepath=data_dir+'image_filemap.csv', 
-                        base_path=data_dir, # this path will be appended to all of the filenames in the csv file
-                        input_cols=['images'], # column in dataframe corresponding to inputs (can be an integer also)
+                        base_path=data_dir,
+                        input_cols=['images'],
                         target_cols=['masks'],
                         input_transform=input_tx, target_transform=target_tx,
-                        co_transform=tx.ExpandDims(axis=-1))# column in dataframe corresponding to targets (can be an integer also)
-real_train_data, real_val_data = real_dataset.split_by_column('train-test')
+                        co_transform=tx.ExpandDims(axis=-1))
+
+real_val_data, real_train_data = real_dataset.split_by_column('train-test')
 real_val_x, real_val_y = real_val_data.load()
 
 real_val_y_pred = model.predict(real_val_x)
@@ -87,6 +87,7 @@ real_val_y_pred_plot = real_val_y_pred.copy()
 real_val_y_pred_plot[real_val_y_pred_plot!=1]=None
 real_val_y_plot = real_val_y.copy()
 real_val_y_plot[real_val_y_plot!=1]=None
+
 for i in range(len(real_val_data)):
     print(*['-']*20)
     plt.imshow(real_val_x[i,:,:,0])
