@@ -397,6 +397,19 @@ class CSVDataset(BaseDataset):
             self.target_transform = _process_transform_argument(target_transform, self.num_targets)
             self.co_transform = _process_co_transform_argument(co_transform, self.num_inputs, self.num_targets)
 
+
+    def set_input_transform(self, transform):
+        """ overwrite input transform correctly """
+        self.input_transform = _process_transform_argument(transform, self.num_inputs)
+    def set_target_transform(self, transform):
+        """ overwrite target transform correctly """
+        self.target_transform = _process_transform_argument(transform, self.num_targets)
+    def set_co_transform(self, transform):
+        """ overwrite co transform correctly """
+        if not self.has_target:
+            raise ValueError('dataset must have a target tensor')
+        self.co_transform = _process_co_transform_argument(transform, self.num_inputs, self.num_targets)
+
     def __getitem__(self, index):
         """
         Index the dataset and return the input + target

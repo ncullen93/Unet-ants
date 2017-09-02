@@ -174,7 +174,8 @@ class RandomAffine(object):
                  fill_mode='constant',
                  fill_value=0., 
                  target_fill_mode='nearest', 
-                 target_fill_value=0.):
+                 target_fill_value=0.,
+                 turn_off_frequency=-1):
         """Perform an affine transforms with various sub-transforms, using
         only one interpolation and without having to instantiate each
         sub-transform individually.
@@ -250,12 +251,19 @@ class RandomAffine(object):
         self.fill_value = fill_value
         self.target_fill_mode = target_fill_mode
         self.target_fill_value = target_fill_value
+        
+        self.turn_off_frequency = turn_off_frequency
+        self.frequency_counter = 0
 
     def transform(self, X, y=None):
-        # collect all of the lazily returned tform matrices
-        tform_matrix = self.transforms[0].transform(X)
-        for tform in self.transforms[1:]:
-            tform_matrix = np.dot(tform_matrix, tform.transform(X)) 
+        if self.frequency_counter % self.turn_off_frequency == 0:
+            tform_matrix = np.eye(X.ndim)
+        else:
+            # collect all of the lazily returned tform matrices
+            tform_matrix = self.transforms[0].transform(X)
+            for tform in self.transforms[1:]:
+                tform_matrix = np.dot(tform_matrix, tform.transform(X))
+        self.frequency_counter += 1 
 
         X = apply_transform(X, tform_matrix,
                             fill_mode=self.fill_mode, 

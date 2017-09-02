@@ -4,7 +4,7 @@ import numpy as np
 import keras.backend as K
 from keras.models import Model
 from keras.layers import (Input, Conv2D, Conv2DTranspose,
-                            MaxPooling2D, Concatenate)
+                            MaxPooling2D, Concatenate, UpSampling2D)
 from keras import optimizers as opt
 
 
@@ -22,9 +22,9 @@ def loss_dice_coefficient_error(y_true, y_pred):
 def create_unet_model2D(input_image_size,
                         n_labels=1,
                         layers=4,
-                        lowest_resolution=32,
-                        convolution_kernel_size=(3,3),
-                        deconvolution_kernel_size=(3,3),
+                        lowest_resolution=16,
+                        convolution_kernel_size=(5,5),
+                        deconvolution_kernel_size=(5,5),
                         pool_size=(2,2),
                         strides=(2,2)):
     """
@@ -63,16 +63,18 @@ def create_unet_model2D(input_image_size,
                                                         padding='same')(conv))
 
         if i < len(layers)-1:
-            pool = MaxPooling2D(pool_size=pool_size,
-                                strides=strides)(encoding_convolution_layers[i])
-
+            #pool = MaxPooling2D(pool_size=pool_size, strides=strides)(encoding_convolution_layers[i])
+            pool = MaxPooling2D(pool_size=pool_size)(encoding_convolution_layers[i])
 
     ## DECODING PATH ##
     outputs = encoding_convolution_layers[len(layers)-1]
     for i in range(1,len(layers)):
         number_of_filters = lowest_resolution * 2**(len(layers)-layers[i]-1)
+        #tmp_deconv = Conv2DTranspose(filters=number_of_filters, kernel_size=deconvolution_kernel_size,
+        #                            strides=strides, padding='same')(outputs)
         tmp_deconv = Conv2DTranspose(filters=number_of_filters, kernel_size=deconvolution_kernel_size,
-                                    strides=strides, padding='same')(outputs)
+                                     padding='same')(outputs)
+        tmp_deconv = UpSampling2D(size=pool_size)(tmp_deconv)
         outputs = Concatenate(axis=3)([tmp_deconv, encoding_convolution_layers[len(layers)-i-1]])
 
         outputs = Conv2D(filters=number_of_filters, kernel_size=convolution_kernel_size, 
