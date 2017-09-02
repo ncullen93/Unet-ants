@@ -88,11 +88,15 @@ for i in range(len(val_data)):
     plt.imshow(real_val_x[i,:,:,0])
     plt.imshow(real_val_y_plot[i,:,:,0],cmap='Reds_r')
     plt.title('ground truth')
-    plt.show()
+    plt.savefig(results_dir+'predictions/truth_%i.png'%i)
+    plt.clf()
+    #plt.show()
     plt.imshow(real_val_x[i,:,:,0])
     plt.imshow(real_val_y_pred_plot[i,:,:,0],cmap='Reds_r')
     plt.title('predicted')
-    plt.show()
+    #plt.show()
     print(*['-']*20)
+    plt.savefig(results_dir+'predictions/pred_%i.png'%i)
+    plt.clf()
 
 
