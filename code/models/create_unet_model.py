@@ -19,7 +19,7 @@ def loss_dice_coefficient_error(y_true, y_pred):
     return -dice_coefficient(y_true, y_pred)
 
 
-def create_Unet_model2D(input_image_size,
+def create_unet_model2D(input_image_size,
                         n_labels=1,
                         layers=4,
                         lowest_resolution=32,

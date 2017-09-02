@@ -5,7 +5,7 @@ import numpy as np
 import scipy.ndimage as ndi
 
 #from sklearn.base import BaseEstimator, TransformerMixin
-
+from sklearn import preprocessing as pp
 
 class Compose(object):
 
@@ -18,13 +18,65 @@ class Compose(object):
 
     def fit(self, X, y=None):
         for tx in self.transforms:
-            tx.fit(X, y)
+            try:
+                tx.fit(X, y)
+            except:
+                pass
 
     def transform(self, X, y=None):
-        for tx in self.transforms:
-            X = tx.transform(X)
-        return X
+        if y is None:
+            for tx in self.transforms:
+                X = tx.transform(X)
+            return X
+        else:
+            for tx in self.transforms:
+                X, y = tx.transform(X, y)
+            return X, y
 
+    def get_params(self):
+        p_list_dict = []
+        for tx in self.transforms:
+            try:
+                params = tx.get_params()
+            except:
+                params = {}
+            p_list_dict.append(params)
+        return p_list_dict
+
+class StandardScaler(object):
+
+    def __init__(self):
+        pass
+    def transform(self, X, y=None):
+        if np.any(X!=0):
+            new_x = (X - X.mean()) / (X.std())
+        else:
+            new_x = X
+        if y is None:
+            return new_x
+        else:
+            if np.any(y!=0):
+                new_y = (y - y.mean()) / (y.std())
+            else:
+                new_y = y
+            return new_x, new_y
+
+class MinMaxScaler(object):
+    def __init__(self, feature_range=(0,1)):
+        self.frange = feature_range
+    def transform(self, X, y=None):
+        if np.any(X!=0):
+            new_x = pp.MinMaxScaler(self.frange).fit_transform(X)
+        else:
+            new_x = X
+        if y is None:
+            return new_x
+        else:
+            if np.any(y!=0):
+                new_y = pp.MinMaxScaler(self.frange).fit_transform(y)
+            else:
+                new_y = y
+            return new_x, new_y
 
 class LambdaTransform(object):
 
@@ -41,7 +93,10 @@ class ExpandDims(object):
         self.axis = axis
 
     def transform(self, X, y=None):
-        return np.expand_dims(X, axis=self.axis)
+        if y is None:
+            return np.expand_dims(X, axis=self.axis)
+        else:
+            return np.expand_dims(X, axis=self.axis), np.expand_dims(y, axis=self.axis)
 
 
 class ToCategorical(object):
@@ -67,6 +122,20 @@ class TypeCast(object):
         return X.astype(self.dtype)
 
 
+class BinaryMask(object):
+    def __init__(self, cutoff):
+        if cutoff >= 1:
+            raise ValueError('cutoff must be less than 1')
+        self.cutoff = cutoff
+
+    def transform(self, X, y=None):
+        X[X >= self.cutoff] = 1
+        X[X < self.cutoff] = 0
+        if y is not None:
+            y[y>=self.cutoff]=1
+            y[y<self.cutoff]=0
+            return X, y
+        return X
 
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x) / 2 + 0.5
@@ -76,7 +145,12 @@ def transform_matrix_offset_center(matrix, x, y):
     transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
     return transform_matrix
 
-def apply_transform(x, transform, fill_mode='nearest', fill_value=0., channel_axis=-1):
+def apply_transform(x, transform, fill_mode='nearest', fill_value=0., channel_axis=2):
+    if isinstance(fill_value, str):
+        if fill_value == 'min':
+            fill_value = x.min()
+        elif fill_value == 'max':
+            fill_value = x.max()
     x = np.rollaxis(x, channel_axis, 0)
     x = x.astype('float32')
     transform = transform_matrix_offset_center(transform, x.shape[1], x.shape[2])
@@ -90,7 +164,7 @@ def apply_transform(x, transform, fill_mode='nearest', fill_value=0., channel_ax
     return x
 
 
-class Affine(object):
+class RandomAffine(object):
 
     def __init__(self, 
                  rotation_range=None, 
@@ -145,20 +219,32 @@ class Affine(object):
         """
         self.transforms = []
         if rotation_range:
-            rotation_tform = Rotate(rotation_range, lazy=True)
+            rotation_tform = RandomRotate(rotation_range, fill_mode=fill_mode, fill_value=fill_value, lazy=True)
             self.transforms.append(rotation_tform)
+            self.rtx = rotation_tform
+        else:
+            self.rtx = None
 
         if translation_range:
-            translation_tform = Translate(translation_range, lazy=True)
+            translation_tform = RandomTranslate(translation_range, fill_mode=fill_mode, fill_value=fill_value, lazy=True)
             self.transforms.append(translation_tform)
+            self.ttx = translation_tform
+        else:
+            self.ttx = None
 
         if shear_range:
-            shear_tform = Shear(shear_range, lazy=True)
+            shear_tform = RandomShear(shear_range, fill_mode=fill_mode, fill_value=fill_value, lazy=True)
             self.transforms.append(shear_tform) 
+            self.stx = shear_tform
+        else:
+            self.stx = None
 
         if zoom_range:
-            zoom_tform = Zoom(zoom_range, lazy=True)
+            zoom_tform = RandomZoom(zoom_range, fill_mode=fill_mode, fill_value=fill_value, lazy=True)
             self.transforms.append(zoom_tform)
+            self.ztx = zoom_tform
+        else:
+            self.ztx = None
 
         self.fill_mode = fill_mode
         self.fill_value = fill_value
@@ -167,9 +253,9 @@ class Affine(object):
 
     def transform(self, X, y=None):
         # collect all of the lazily returned tform matrices
-        tform_matrix = self.transforms[0](X)
+        tform_matrix = self.transforms[0].transform(X)
         for tform in self.transforms[1:]:
-            tform_matrix = np.dot(tform_matrix, tform(X)) 
+            tform_matrix = np.dot(tform_matrix, tform.transform(X)) 
 
         X = apply_transform(X, tform_matrix,
                             fill_mode=self.fill_mode, 
@@ -182,6 +268,18 @@ class Affine(object):
             return X, y
         else:
             return X
+
+    def get_params(self):
+        vals = {}
+        if self.rtx is not None:
+            vals['rotation'] = self.rtx._degree
+        if self.ttx is not None:
+            vals['translation'] = self.ttx._txty
+        if self.stx is not None:
+            vals['shear'] = self.stx._shear
+        if self.ztx is not None:
+            vals['zoom'] = self.ztx._zoom
+        return vals
 
 
 class AffineCompose(object):
@@ -223,9 +321,9 @@ class AffineCompose(object):
 
     def transform(self, X, y=None):
         # collect all of the lazily returned tform matrices
-        tform_matrix = self.transforms[0](X)
+        tform_matrix = self.transforms[0].transform(X)
         for tform in self.transforms[1:]:
-            tform_matrix = np.dot(tform_matrix, tform(X)) 
+            tform_matrix = np.dot(tform_matrix, tform.transform(X)) 
 
         X = apply_transform(X, tform_matrix,
                             fill_mode=self.fill_mode, 
@@ -240,7 +338,7 @@ class AffineCompose(object):
             return X
 
 
-class Rotate(object):
+class RandomRotate(object):
 
     def __init__(self, 
                  rotation_range, 
@@ -275,7 +373,8 @@ class Rotate(object):
         self.lazy = lazy
 
     def transform(self, X, y=None):
-        degree = random.uniform(-self.rotation_range, self.rotation_range)
+        degree = random.uniform(self.rotation_range[0], self.rotation_range[1])
+        self._degree = degree
         theta = math.pi / 180 * degree
         rotation_matrix = np.array([[math.cos(theta), -math.sin(theta), 0],
                                     [math.sin(theta), math.cos(theta), 0],
@@ -295,7 +394,7 @@ class Rotate(object):
                 return x_transformed
 
 
-class Translate(object):
+class RandomTranslate(object):
 
     def __init__(self, 
                  translation_range, 
@@ -352,6 +451,7 @@ class Translate(object):
         else:
             ty = 0
 
+        self._txty = (tx,ty)
         translation_matrix = np.array([[1, 0, tx],
                                        [0, 1, ty],
                                        [0, 0, 1]])
@@ -370,7 +470,7 @@ class Translate(object):
                 return x_transformed
 
 
-class Shear(object):
+class RandomShear(object):
 
     def __init__(self, 
                  shear_range, 
@@ -404,7 +504,10 @@ class Shear(object):
         self.lazy = lazy
 
     def transform(self, X, y=None):
-        shear = random.uniform(-self.shear_range, self.shear_range)
+        shear = random.uniform(self.shear_range[0], self.shear_range[1])
+        self._shear = shear
+        shear = (math.pi * shear) / 180
+        
         shear_matrix = np.array([[1, -math.sin(shear), 0],
                                  [0, math.cos(shear), 0],
                                  [0, 0, 1]])
@@ -422,9 +525,8 @@ class Shear(object):
             else:
                 return x_transformed
 
-      
 
-class Zoom(object):
+class RandomZoom(object):
 
     def __init__(self, 
                  zoom_range, 
@@ -467,6 +569,7 @@ class Zoom(object):
     def transform(self, X, y=None):
         zx = random.uniform(self.zoom_range[0], self.zoom_range[1])
         zy = random.uniform(self.zoom_range[0], self.zoom_range[1])
+        self._zoom = (zx,zy)
         zoom_matrix = np.array([[zx, 0, 0],
                                 [0, zy, 0],
                                 [0, 0, 1]])

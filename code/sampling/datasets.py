@@ -25,7 +25,7 @@ def default_file_reader(x, base_path=''):
         x = os.path.join(base_path, x)
         if x.endswith('.npy'):
             x = npy_loader(x)
-        elif x.endsiwth('.nii.gz'):
+        elif x.endswith('.nii.gz'):
             x = nifti_loader(x)
         else:
             try:
@@ -40,21 +40,21 @@ def is_tuple_or_list(x):
     return isinstance(x, (tuple,list))
 
 def _process_transform_argument(tform, num_inputs):
-    tform = tform if tform is not None else _pass_through
+    tform = tform if tform is not None else PassThrough()
     if is_tuple_or_list(tform):
         if len(tform) != num_inputs:
             raise Exception('If transform is list, must provide one transform for each input')
-        tform = [t if t is not None else _pass_through for t in tform]
+        tform = [t if t is not None else PassThrough() for t in tform]
     else:
         tform = [tform] * num_inputs
     return tform
 
 def _process_co_transform_argument(tform, num_inputs, num_targets):
-    tform = tform if tform is not None else _multi_arg_pass_through
+    tform = tform if tform is not None else MultiArgPassThrough()
     if is_tuple_or_list(tform):
         if len(tform) != num_inputs:
             raise Exception('If transform is list, must provide one transform for each input')
-        tform = [t if t is not None else _multi_arg_pass_through for t in tform]
+        tform = [t if t is not None else MultiArgPassThrough() for t in tform]
     else:
         tform = [tform] * min(num_inputs, num_targets)
     return tform
@@ -85,11 +85,14 @@ def _process_cols_argument(cols):
 def _return_first_element_of_list(x):
     return x[0]
 
-def _pass_through(x):
-    return x
+class PassThrough(object):
+    def transform(self, X):
+        return X
 
-def _multi_arg_pass_through(*x):
-    return x
+class MultiArgPassThrough(object):
+    def transform(self, *x):
+        return x
+
 
 def _process_array_argument(x):
     if not is_tuple_or_list(x):
@@ -291,14 +294,14 @@ class ArrayDataset(BaseDataset):
         """
         self.inputs = inputs if is_tuple_or_list(inputs) else [inputs]
         self.num_inputs = len(self.inputs)
-        self.input_return_processor = _return_first_element_of_list if self.num_inputs==1 else _pass_through
+        self.input_return_processor = _return_first_element_of_list if self.num_inputs==1 else PassThrough()
 
         if targets is None:
             self.has_target = False
         else:
             self.targets = targets if is_tuple_or_list(targets) else [targets]
             self.num_targets = len(self.targets)
-            self.target_return_processor = _return_first_element_of_list if self.num_targets==1 else _pass_through
+            self.target_return_processor = _return_first_element_of_list if self.num_targets==1 else PassThrough()
             self.min_inputs_or_targets = min(self.num_inputs, self.num_targets)
             self.has_target = True            
         
@@ -311,12 +314,12 @@ class ArrayDataset(BaseDataset):
         """
         Index the dataset and return the input + target
         """
-        input_sample = [self.input_transform[i](self.inputs[i][index]) for i in range(self.num_inputs)]
+        input_sample = [self.input_transform[i].transform(self.inputs[i][index]) for i in range(self.num_inputs)]
 
         if self.has_target:
-            target_sample = [self.target_transform[i](self.targets[i][index]) for i in range(self.num_targets)]
+            target_sample = [self.target_transform[i].transform(self.targets[i][index]) for i in range(self.num_targets)]
             for i in range(self.min_inputs_or_targets):
-                input_sample[i], target_sample[i] = self.co_transform[i](input_sample[i], target_sample[i])
+                input_sample[i], target_sample[i] = self.co_transform[i].transform(input_sample[i], target_sample[i])
 
             return self.input_return_processor(input_sample), self.target_return_processor(target_sample)
         else:
@@ -326,12 +329,13 @@ class ArrayDataset(BaseDataset):
 class CSVDataset(BaseDataset):
 
     def __init__(self,
-                 csv,
+                 filepath,
                  input_cols=[0],
                  target_cols=[1],
                  input_transform=None,
                  target_transform=None,
                  co_transform=None,
+                 co_transforms_first=False,
                  base_path=None):
         """
         Initialize a Dataset from a CSV file/dataframe. This does NOT
@@ -367,11 +371,12 @@ class CSVDataset(BaseDataset):
         self.target_cols = _process_cols_argument(target_cols)
         self.base_path = '' if base_path is None else base_path
         
-        self.df = _process_csv_argument(csv)
+        self.df = _process_csv_argument(filepath)
 
         self.inputs = _select_dataframe_columns(self.df, input_cols)
         self.num_inputs = self.inputs.shape[1]
-        self.input_return_processor = _return_first_element_of_list if self.num_inputs==1 else _pass_through
+        self.input_return_processor = _return_first_element_of_list if self.num_inputs==1 else PassThrough()
+        self.co_transforms_first = co_transforms_first
 
         if target_cols is None:
             self.num_targets = 0
@@ -379,7 +384,7 @@ class CSVDataset(BaseDataset):
         else:
             self.targets = _select_dataframe_columns(self.df, target_cols)
             self.num_targets = self.targets.shape[1]
-            self.target_return_processor = _return_first_element_of_list if self.num_targets==1 else _pass_through
+            self.target_return_processor = _return_first_element_of_list if self.num_targets==1 else PassThrough()
             self.has_target = True
 
             self.min_inputs_or_targets = min(self.num_inputs, self.num_targets)
@@ -396,17 +401,34 @@ class CSVDataset(BaseDataset):
         """
         Index the dataset and return the input + target
         """
-        input_sample = [self.input_transform[i](self.input_loader(self.inputs[index, i], self.base_path)) for i in range(self.num_inputs)]
+        if self.co_transforms_first:
+            input_sample = [self.input_loader(self.inputs[index, i], self.base_path) for i in range(self.num_inputs)]
 
-        if self.has_target:
-            target_sample = [self.target_transform[i](self.target_loader(self.targets[index, i], self.base_path)) for i in range(self.num_targets)]
-            
-            #for i in range(self.min_inputs_or_targets):
-            #    input_sample[i], input_sample[i] = self.co_transform[i](input_sample[i], target_sample[i])
+            if self.has_target:
+                target_sample = [self.target_loader(self.targets[index, i], self.base_path) for i in range(self.num_targets)]
+                for i in range(self.min_inputs_or_targets):
+                    input_sample[i], target_sample[i] = self.co_transform[i].transform(input_sample[i], target_sample[i])
 
-            return self.input_return_processor(input_sample), self.target_return_processor(target_sample)
+                for i in range(len(input_sample)):
+                    input_sample[i] = self.input_transform[i].transform(input_sample[i])
+                    target_sample[i] = self.target_transform[i].transform(target_sample[i])
+
+                return self.input_return_processor(input_sample), self.target_return_processor(target_sample)
+            else:
+                for i in range(len(input_sample)):
+                    input_sample[i] = self.input_transform[i].transform(input_sample[i])
+                return self.input_return_processor(input_sample)  
         else:
-            return self.input_return_processor(input_sample)
+            input_sample = [self.input_transform[i].transform(self.input_loader(self.inputs[index, i], self.base_path)) for i in range(self.num_inputs)]
+
+            if self.has_target:
+                target_sample = [self.target_transform[i].transform(self.target_loader(self.targets[index, i], self.base_path)) for i in range(self.num_targets)]
+                for i in range(self.min_inputs_or_targets):
+                    input_sample[i], target_sample[i] = self.co_transform[i].transform(input_sample[i], target_sample[i])
+
+                return self.input_return_processor(input_sample), self.target_return_processor(target_sample)
+            else:
+                return self.input_return_processor(input_sample) 
 
     def split_by_column(self, col):
         """
@@ -477,7 +499,8 @@ class CSVDataset(BaseDataset):
                           target_cols=self.target_cols,
                           input_transform=self.input_transform,
                           target_transform=self.target_transform,
-                          co_transform=self.co_transform)
+                          co_transform=self.co_transform,
+                          base_path=self.base_path)
 
 
 class FolderDataset(BaseDataset):

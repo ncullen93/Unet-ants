@@ -9,6 +9,10 @@ import math
 import sys
 import traceback
 import threading
+
+import scipy.misc
+import os
+
 if sys.version_info[0] == 2:
     import Queue as queue
     string_classes = basestring
@@ -281,5 +285,27 @@ class DataLoader(object):
 
     def __len__(self):
         return (len(self.sampler) + self.batch_size - 1) // self.batch_size
+
+    def write_a_batch(self, save_dir):
+        myiter = iter(self)
+        x, y = myiter.next()
+
+        if not os.path.exists(save_dir):
+            try:
+                os.mkdir(save_dir)
+            except:
+                pass
+        else:
+            try:
+                os.rmdir(save_dir)
+            except:
+                pass
+        
+        for i in range(len(x)):
+            xx = x[i]
+            yy = y[i]
+            scipy.misc.imsave(os.path.join(save_dir,'%3i_x.jpg'%i), np.squeeze(xx))
+            scipy.misc.imsave(os.path.join(save_dir,'%3i_y.jpg'%i), np.squeeze(yy))
+
 
 
