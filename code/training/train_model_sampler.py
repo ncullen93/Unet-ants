@@ -83,20 +83,25 @@ real_val_y_pred_plot[real_val_y_pred_plot!=1]=None
 real_val_y_plot = real_val_y.copy()
 real_val_y_plot[real_val_y_plot!=1]=None
 
+save_fig = False
 for i in range(len(val_data)):
     print(*['-']*20)
     plt.imshow(real_val_x[i,:,:,0])
     plt.imshow(real_val_y_plot[i,:,:,0],cmap='Reds_r')
     plt.title('ground truth')
-    plt.savefig(results_dir+'predictions/truth_%i.png'%i)
-    plt.clf()
-    #plt.show()
+    if save_fig:
+        plt.savefig(results_dir+'predictions/%2i_truth.png'%i)
+        plt.clf()
+    else:
+        plt.show()
     plt.imshow(real_val_x[i,:,:,0])
     plt.imshow(real_val_y_pred_plot[i,:,:,0],cmap='Reds_r')
     plt.title('predicted')
-    #plt.show()
+    if save_fig:
+        plt.savefig(results_dir+'predictions/%2i_pred.png'%i)
+        plt.clf()
+    else:
+        plt.show()
     print(*['-']*20)
-    plt.savefig(results_dir+'predictions/pred_%i.png'%i)
-    plt.clf()
 
 
