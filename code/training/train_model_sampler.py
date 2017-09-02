@@ -90,7 +90,7 @@ for i in range(len(val_data)):
     plt.imshow(real_val_y_plot[i,:,:,0],cmap='Reds_r')
     plt.title('ground truth')
     if save_fig:
-        plt.savefig(results_dir+'predictions/%2i_truth.png'%i)
+        plt.savefig(results_dir+'predictions/%02i_truth.png'%i)
         plt.clf()
     else:
         plt.show()
@@ -98,7 +98,7 @@ for i in range(len(val_data)):
     plt.imshow(real_val_y_pred_plot[i,:,:,0],cmap='Reds_r')
     plt.title('predicted')
     if save_fig:
-        plt.savefig(results_dir+'predictions/%2i_pred.png'%i)
+        plt.savefig(results_dir+'predictions/%02i_pred.png'%i)
         plt.clf()
     else:
         plt.show()
