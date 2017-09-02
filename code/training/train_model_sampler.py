@@ -40,6 +40,7 @@ dataset = CSVDataset(filepath=data_dir+'image_filemap.csv',
                     target_cols=['masks'],# column in dataframe corresponding to targets (can be an integer also)
                     input_transform=input_tx, target_transform=target_tx, co_transform=co_tx)
 
+
 # split into train and test set based on the `train-test` column in the csv file
 # this splits alphabetically by values, and since 'test' comes before 'train' thus val_data is returned before train_data
 val_data, train_data = dataset.split_by_column('train-test')
@@ -64,3 +65,38 @@ model.fit_generator(generator=iter(train_loader), steps_per_epoch=np.ceil(len(tr
                     validation_data=iter(val_loader), validation_steps=np.ceil(len(val_data)/batch_size), 
                     class_weight=None, max_queue_size=10, 
                     workers=1, use_multiprocessing=False,  initial_epoch=0)
+
+
+### RUNNING INFERENCE ON THE NON-AUGMENTED DATA
+
+
+real_dataset = CSVDataset(filepath=data_dir+'image_filemap.csv', 
+                        base_path=data_dir, # this path will be appended to all of the filenames in the csv file
+                        input_cols=['images'], # column in dataframe corresponding to inputs (can be an integer also)
+                        target_cols=['masks'],
+                        input_transform=input_tx, target_transform=target_tx,
+                        co_transform=tx.ExpandDims(axis=-1))# column in dataframe corresponding to targets (can be an integer also)
+real_train_data, real_val_data = real_dataset.split_by_column('train-test')
+real_val_x, real_val_y = real_val_data.load()
+
+real_val_y_pred = model.predict(real_val_x)
+real_val_y_pred[real_val_y_pred>=0.5] = 1
+real_val_y_pred[real_val_y_pred<0.5] = 0
+
+real_val_y_pred_plot = real_val_y_pred.copy()
+real_val_y_pred_plot[real_val_y_pred_plot!=1]=None
+real_val_y_plot = real_val_y.copy()
+real_val_y_plot[real_val_y_plot!=1]=None
+for i in range(len(real_val_data)):
+    print(*['-']*20)
+    plt.imshow(real_val_x[i,:,:,0])
+    plt.imshow(real_val_y_plot[i,:,:,0],cmap='Reds_r')
+    plt.title('ground truth')
+    plt.show()
+    plt.imshow(real_val_x[i,:,:,0])
+    plt.imshow(real_val_y_pred_plot[i,:,:,0],cmap='Reds_r')
+    plt.title('predicted')
+    plt.show()
+    print(*['-']*20)
+
+
