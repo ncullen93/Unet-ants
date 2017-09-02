@@ -72,6 +72,7 @@ model.fit_generator(generator=iter(train_loader), steps_per_epoch=np.ceil(len(tr
 
 ### RUNNING INFERENCE ON THE NON-AUGMENTED DATA
 
+# load all the validation data into memory.. not at all necessary but easier for this example
 real_val_x, real_val_y = val_data.load()
 
 real_val_y_pred = model.predict(real_val_x)
