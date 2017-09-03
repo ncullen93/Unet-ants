@@ -26,7 +26,10 @@ def create_unet_model2D(input_image_size,
                         convolution_kernel_size=(5,5),
                         deconvolution_kernel_size=(5,5),
                         pool_size=(2,2),
-                        strides=(2,2)):
+                        strides=(2,2),
+                        mode='classification',
+                        output_activation='tanh',
+                        init_lr=0.0001):
     """
     Create a 2D Unet model
 
@@ -82,21 +85,29 @@ def create_unet_model2D(input_image_size,
         outputs = Conv2D(filters=number_of_filters, kernel_size=convolution_kernel_size, 
                         activation='relu', padding='same')(outputs)
 
-    if number_of_classification_labels == 1:
-        outputs = Conv2D(filters=number_of_classification_labels, kernel_size=(1,1), 
-                        activation='sigmoid')(outputs)
-    else:
-        outputs = Conv2D(filters=number_of_classification_labels, kernel_size=(1,1), 
-                        activation='softmax')(outputs)
+    if mode == 'classification':
+        if number_of_classification_labels == 1:
+            outputs = Conv2D(filters=number_of_classification_labels, kernel_size=(1,1), 
+                            activation='sigmoid')(outputs)
+        else:
+            outputs = Conv2D(filters=number_of_classification_labels, kernel_size=(1,1), 
+                            activation='softmax')(outputs)
 
-    unet_model = Model(inputs=inputs, outputs=outputs)
+        unet_model = Model(inputs=inputs, outputs=outputs)
 
-    if number_of_classification_labels == 1:
-        unet_model.compile(loss=loss_dice_coefficient_error, 
-                            optimizer=opt.Adam(lr=0.0001), metrics=[dice_coefficient])
+        if number_of_classification_labels == 1:
+            unet_model.compile(loss=loss_dice_coefficient_error, 
+                                optimizer=opt.Adam(lr=init_lr), metrics=[dice_coefficient])
+        else:
+            unet_model.compile(loss='categorical_crossentropy', 
+                                optimizer=opt.Adam(lr=init_lr), metrics=['accuracy', 'categorical_crossentropy'])
+    elif mode =='regression':
+        outputs = Conv2D(filters=number_of_classification_labels, kernel_size=(1,1), 
+                        activation=output_activation)(outputs)
+        unet_model = Model(inputs=inputs, outputs=outputs)
+        unet_model.compile(loss='mse', optimizer=opt.Adam(lr=init_lr))
     else:
-        unet_model.compile(loss='categorical_crossentropy', 
-                            optimizer=opt.Adam(lr=5e-5), metrics=['accuracy', 'categorical_crossentropy'])
+        raise ValueError('mode must be either `classification` or `regression`')
 
     return unet_model
 
