@@ -10,3 +10,7 @@ Original image:
 Rotated image:
 
 ![png](example-rotate.png)
+
+
+## Useful Links
+http://theorangeduck.com/page/neural-network-not-working
