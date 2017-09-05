@@ -1,10 +1,10 @@
 # Unet-ants
 
-This is a self-contained repository for training regression-based or classification-based
-UNET models with or without various data augmentations. It also lets you train on
-large datasets without having to load them all directly into memory. All you need
-is a CSV with file paths to the images. Also, the UNET model is fairly customizable,
-allowing for various model complexities.
+This is a self-contained repository for training regression-based or classification-based,
+highly-customizable UNET models in Keras. It also lets you train on large 
+datasets with augmentation and
+without having to load them all directly into memory. All you need
+is a CSV with file paths to the images. 
 
 ## Scripts
 
