@@ -13,14 +13,27 @@ import nibabel
 
 from . import transforms
 
+try:
+    import ants
+    has_ants=True
+except:
+    has_ants=False
+
+def nibabel_loader(path):
+    return nibabel.load(path).get_data()
+def ants_loader(path):
+    return ants.image_read(path).numpy()
+
+if has_ants:
+    nifti_loader = ants_loader
+else:
+    nifti_loader = nibabel_loader
 
 def default_file_reader(x, base_path=''):
     def pil_loader(path):
         return Image.open(path).convert('RGB')
     def npy_loader(path):
         return np.load(path)
-    def nifti_loader(path):
-        return nibabel.load(path).get_data()
     if isinstance(x, str):
         x = os.path.join(base_path, x)
         if x.endswith('.npy'):
@@ -397,7 +410,6 @@ class CSVDataset(BaseDataset):
             self.target_transform = _process_transform_argument(target_transform, self.num_targets)
             self.co_transform = _process_co_transform_argument(co_transform, self.num_inputs, self.num_targets)
 
-
     def set_input_transform(self, transform):
         """ overwrite input transform correctly """
         self.input_transform = _process_transform_argument(transform, self.num_inputs)
@@ -513,6 +525,7 @@ class CSVDataset(BaseDataset):
                           input_transform=self.input_transform,
                           target_transform=self.target_transform,
                           co_transform=self.co_transform,
+                          co_transforms_first=self.co_transforms_first,
                           base_path=self.base_path)
 
 

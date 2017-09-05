@@ -6,6 +6,7 @@ import scipy.ndimage as ndi
 
 #from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn import preprocessing as pp
+from keras.utils.np_utils import to_categorical
 
 class Compose(object):
 
@@ -62,21 +63,34 @@ class StandardScaler(object):
             return new_x, new_y
 
 class MinMaxScaler(object):
+
     def __init__(self, feature_range=(0,1)):
-        self.frange = feature_range
+        """
+        Scale data between an arbitrary range
+        """
+        self.feature_range = feature_range
+
     def transform(self, X, y=None):
         if np.any(X!=0):
-            new_x = pp.MinMaxScaler(self.frange).fit_transform(X)
-        else:
-            new_x = X
+            min_x = X.min()
+            max_x = X.max()
+            scale_ = (self.feature_range[1] - self.feature_range[0]) / (max_x - min_x)
+            min_ = self.feature_range[0] - min_x * scale_
+            X *= scale_
+            X += min_
+
         if y is None:
-            return new_x
+            return X
         else:
             if np.any(y!=0):
-                new_y = pp.MinMaxScaler(self.frange).fit_transform(y)
-            else:
-                new_y = y
-            return new_x, new_y
+                min_y = y.min()
+                max_y = y.max()
+                scale_ = (self.feature_range[1] - self.feature_range[0]) / (max_y - min_y)
+                min_ = self.feature_range[0] - min_y * scale_
+                y *= scale_
+                y += min_
+
+            return X, y
 
 class LambdaTransform(object):
 
@@ -99,27 +113,31 @@ class ExpandDims(object):
             return np.expand_dims(X, axis=self.axis), np.expand_dims(y, axis=self.axis)
 
 
-class ToCategorical(object):
+class OneHot(object):
 
     def __init__(self, num_classes=None):
         self.num_classes = num_classes
 
     def transform(self, X, y=None):
-        X = np.array(X, dtype='int').ravel()
-        if not self.num_classes:
-            self.num_classes = np.max(X) + 1
-        n = X.shape[0]
-        categorical = np.zeros((n, self.num_classes))
-        categorical[np.arange(n), X] = 1
-        return categorical
+        """
+        Assumes channel dim is last dimension
+        """
+        xshape = list(X.shape[:-1])
+        xx = to_categorical(X)
+        xx = xx.reshape(xshape+[xx.shape[-1]])
+        return xx
 
 
 class TypeCast(object):
     def __init__(self, dtype):
-        self.dtype = dtype
+        if not isinstance(dtype, (tuple,list)):
+            self.dtype = (dtype,dtype)
 
     def transform(self, X, y=None):
-        return X.astype(self.dtype)
+        if y is None:
+            return X.astype(self.dtype[0])
+        else:
+            return X.astype(self.dtype[0]), y.astype(self.dtype[1])
 
 
 class BinaryMask(object):
@@ -151,9 +169,20 @@ def apply_transform(x, transform, fill_mode='nearest', fill_value=0., channel_ax
             fill_value = x.min()
         elif fill_value == 'max':
             fill_value = x.max()
+
+    # squeeze image if it's 4D (3D and a channel)
+    # ergo this only supports 3D images if they have only 1 channel
+    # and assumes the channel is last
+    if x.ndim == 4:
+        is_4d = True
+        x = x[...,0]
+    else:
+        is_4d = False
+
     x = np.rollaxis(x, channel_axis, 0)
     x = x.astype('float32')
-    transform = transform_matrix_offset_center(transform, x.shape[1], x.shape[2])
+
+    transform = transform_matrix_offset_center(transform, x.shape[0], x.shape[1])
     final_affine_matrix = transform[:2, :2]
     final_offset = transform[:2, 2]
     channel_images = [ndi.interpolation.affine_transform(x_channel, 
@@ -161,6 +190,9 @@ def apply_transform(x, transform, fill_mode='nearest', fill_value=0., channel_ax
         cval=fill_value) for x_channel in x]
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_axis+1)
+
+    if is_4d:
+        x = np.expand_dims(x, -1)
     return x
 
 
@@ -175,7 +207,7 @@ class RandomAffine(object):
                  fill_value=0., 
                  target_fill_mode='nearest', 
                  target_fill_value=0.,
-                 turn_off_frequency=-1):
+                 turn_off_frequency=None):
         """Perform an affine transforms with various sub-transforms, using
         only one interpolation and without having to instantiate each
         sub-transform individually.
@@ -256,8 +288,8 @@ class RandomAffine(object):
         self.frequency_counter = 0
 
     def transform(self, X, y=None):
-        if self.frequency_counter % self.turn_off_frequency == 0:
-            tform_matrix = np.eye(X.ndim)
+        if (self.turn_off_frequency is not None) and (self.frequency_counter % self.turn_off_frequency == 0):
+            tform_matrix = np.eye(3)
         else:
             # collect all of the lazily returned tform matrices
             tform_matrix = self.transforms[0].transform(X)
@@ -360,8 +392,9 @@ class RandomRotate(object):
 
         Arguments
         ---------
-        rotation_range : integer or float
-            image will be rotated between (-degrees, degrees) degrees
+        rotation_range : tuple of integers or integer
+            image will be rotated between (rotation_range[0], rotation_range[1]) degrees
+            if rotation_range is tuple, else (-rotation_range, rotation_range) if scalar
 
         fill_mode : string in {'constant', 'nearest'}
             how to fill the empty space caused by the transform
@@ -373,6 +406,8 @@ class RandomRotate(object):
             if true, perform the transform on the tensor and return the tensor
             if false, only create the affine transform matrix and return that
         """
+        if not isinstance(rotation_range, (tuple,list,np.ndarray)):
+            rotation_range = (rotation_range, rotation_range)
         self.rotation_range = rotation_range
         self.fill_mode = fill_mode
         self.fill_value = fill_value

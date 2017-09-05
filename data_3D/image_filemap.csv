@@ -1,0 +1,16 @@
+Images,Segmentations,TrainTest
+t1/0028326/session_1/anat_1/anat.nii.gz,seg/28326_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028327/session_1/anat_1/anat.nii.gz,seg/28327_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028328/session_1/anat_1/anat.nii.gz,seg/28328_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028332/session_1/anat_1/anat.nii.gz,seg/28332_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028335/session_1/anat_1/anat.nii.gz,seg/28335_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028336/session_1/anat_1/anat.nii.gz,seg/28336_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028337/session_1/anat_1/anat.nii.gz,seg/28337_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028341/session_1/anat_1/anat.nii.gz,seg/28341_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028344/session_1/anat_1/anat.nii.gz,seg/28344_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028345/session_1/anat_1/anat.nii.gz,seg/28345_session1_T1_BrainSegmentation.nii.gz,train
+t1/0028346/session_1/anat_1/anat.nii.gz,seg/28346_session1_T1_BrainSegmentation.nii.gz,test
+t1/0028347/session_1/anat_1/anat.nii.gz,seg/28347_session1_T1_BrainSegmentation.nii.gz,test
+t1/0028351/session_1/anat_1/anat.nii.gz,seg/28351_session1_T1_BrainSegmentation.nii.gz,test
+t1/0028354/session_1/anat_1/anat.nii.gz,seg/28354_session1_T1_BrainSegmentation.nii.gz,test
+t1/0028355/session_1/anat_1/anat.nii.gz,seg/28355_session1_T1_BrainSegmentation.nii.gz,test
