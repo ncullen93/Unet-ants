@@ -6,6 +6,7 @@ datasets with augmentation and
 without having to load them all directly into memory. All you need
 is a CSV with file paths to the images. 
 
+The 3D Data is DLBS (Dallas Lifespan Brain Study?) T1 images and 6-class tissue segmentation.
 
 You can use ANTsPy to load nifti images (much faster), but it also supports loading from Nibabel.
 
