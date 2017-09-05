@@ -6,6 +6,9 @@ datasets with augmentation and
 without having to load them all directly into memory. All you need
 is a CSV with file paths to the images. 
 
+
+You can use ANTsPy to load nifti images (much faster), but it also supports loading from Nibabel.
+
 ## Scripts
 
 Scripts to train a model are found in the `/code/training/` folder. In particular,
