@@ -23,7 +23,10 @@ from models import create_unet_model3D
 
 data_dir = base_dir + 'data_3D/'
 results_dir = base_dir+'results_3D/'
-
+try:
+    os.mkdir(results_dir)
+except:
+    pass
 
 # tx.Compose lets you string together multiple transforms
 co_tx = tx.Compose([tx.TypeCast('float32'),
