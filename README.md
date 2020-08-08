@@ -1,3 +1,7 @@
+If you are hiring for a Python-based software engineer or data analyst, email me at nickcullen31 at gmail dot com.
+
+
+
 # Unet-ants
 
 This is a self-contained repository for training regression-based or classification-based,
